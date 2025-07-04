@@ -1,23 +1,11 @@
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import Map from "./components/Map";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{ maxWidth: 1200, margin: "40px auto", padding: 24 }}>
+      <h2>🚗 전국 전기차 충전소 (서울 지역 1000개)</h2>
+      <Map />
     </div>
   );
 }
