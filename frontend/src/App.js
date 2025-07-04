@@ -1,7 +1,23 @@
 import logo from './logo.svg';
 import './App.css';
+import {useEffect, useState} from "react";
+import axios from "axios";
 
 function App() {
+  const [message, setMessage] = useState([]);
+
+  useEffect(() => {
+    // 우리가 만든 서버로 보내는 GET 요청
+      axios.get("/api/hello")
+          .then((response) => {
+            setMessage(response.data);
+            console.log(response.data);
+          })
+          .catch((error) => {
+            console.log(error);
+          })
+  }, []);
+
   return (
     <div className="App">
       <header className="App-header">
@@ -17,6 +33,9 @@ function App() {
         >
           Learn React
         </a>
+        <ul>
+            {message.map((text, index) => <li key={`${index}-${text}`}>{text}</li>)}
+        </ul>
       </header>
     </div>
   );

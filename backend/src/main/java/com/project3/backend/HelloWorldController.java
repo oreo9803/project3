@@ -1,4 +1,4 @@
-package com.projrct3.backend;
+package com.project3.backend;
 
 import org.springframework.web.bind.annotation.*;
 
