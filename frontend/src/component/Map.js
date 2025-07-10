@@ -1,70 +1,149 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import axios from "axios";
 
-function Map() {
+// (1) 두 지점 간 거리(미터) 구하는 함수
+function getDistance(lon1, lat1, lon2, lat2) {
+  const earthRadiusMeters = 6371e3; // 지구 반지름(미터)
+  const toRadians = degrees => degrees * Math.PI / 180;
+  const latitude1Rad = toRadians(lat1);
+  const latitude2Rad = toRadians(lat2);
+  const deltaLatitude = toRadians(lat2 - lat1);
+  const deltaLongitude = toRadians(lon2 - lon1);
+
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(latitude1Rad) * Math.cos(latitude2Rad) *
+    Math.sin(deltaLongitude / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = earthRadiusMeters * c;
+  return distance; // 미터
+}
+
+function OnlyChargerParkingMap() {
   const mapDivRef = useRef(null);
   const mapRef = useRef(null);
   const clusterRef = useRef(null);
-  const [chargerList, setChargerList] = useState([]);
+  const infoWindowRef = useRef(null);
+  const [parkings, setParkings] = useState([]); // 주차장
+  const [stations, setStations] = useState([]); // 충전소
 
-  // 1. API에서 주차장/충전소 데이터 가져오기
+  // (2) 주차장 데이터 (DB에서)
   useEffect(() => {
-    axios
-      .get("http://localhost:18090/api/charger")
-      .then((res) => setChargerList(res.data))
-      .catch((err) => console.error("❌ API 호출 실패:", err));
+    axios.get("http://localhost:18090/api/charger")
+      .then(res => setParkings(res.data))
+      .catch(err => console.error("❌ 주차장 API 오류:", err));
   }, []);
 
-  // 2. 지도, 마커, 클러스터러 렌더링
+  // (3) 충전소 데이터 (공공데이터 API에서, 천안만 필터)
   useEffect(() => {
-    if (!window.Tmapv2 || chargerList.length === 0) return;
+    async function fetchStations() {
+      try {
+        const url = `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=YgV1BhJxbWJKaUUVPFk5Ix4ReH2UAlK0kBcxyX%2BqVLJUG0%2FXUnMoxWYg3zAMt6N4rJGdJAHMxjoxd10%2BWwhuow%3D%3D&zcode=44&pageNo=1&numOfRows=1000`;
+        const res = await fetch(url);
+        const text = await res.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "application/xml");
+        const items = Array.from(xml.getElementsByTagName("item"));
+        const parsed = items.map(item => ({
+          name: item.getElementsByTagName("statNm")[0]?.textContent ?? "",
+          lat: parseFloat(item.getElementsByTagName("lat")[0]?.textContent),
+          lon: parseFloat(item.getElementsByTagName("lng")[0]?.textContent),
+          addr: item.getElementsByTagName("addr")[0]?.textContent ?? "",
+        }));
+        // 천안시 데이터만 필터
+        const valid = parsed.filter(s => !isNaN(s.lat) && !isNaN(s.lon) && s.addr.includes("천안"));
+        setStations(valid);
+      } catch (err) {
+        console.error("❌ 충전소 API 오류:", err);
+      }
+    }
+    fetchStations();
+  }, []);
 
-    // 1) 이전 클러스터/지도 초기화
+  // (4) 충전소가 오차범위(50m) 내에 있는 주차장만 필터링
+  const chargerParkings = useMemo(() => {
+    return parkings.filter(parking =>
+      stations.some(station =>
+        getDistance(parking.parkingLon, parking.parkingLat, station.lon, station.lat) < 50
+      )
+    );
+  }, [parkings, stations]);
+
+  // (5) 지도 & 마커 렌더링
+  useEffect(() => {
+    if (!window.Tmapv2 || chargerParkings.length === 0) return;
+
     if (clusterRef.current) {
       try { clusterRef.current.destroy?.(); } catch {}
       clusterRef.current = null;
     }
+    if (mapRef.current) mapRef.current = null;
     if (mapDivRef.current) mapDivRef.current.innerHTML = "";
+    if (infoWindowRef.current) {
+      infoWindowRef.current.setMap(null);
+      infoWindowRef.current = null;
+    }
 
-    // 2) 지도 생성 (초기 중심: 천안시청 등)
     const map = new window.Tmapv2.Map(mapDivRef.current, {
-      center: new window.Tmapv2.LatLng(36.8189, 127.1555),
+      center: new window.Tmapv2.LatLng(36.8151, 127.1139), // 천안시청 기준
       width: "100%",
       height: "500px",
-      zoom: 13,
+      zoom: 12,
     });
     mapRef.current = map;
 
-    // 3) 마커 + 경계 조정
     const bounds = new window.Tmapv2.LatLngBounds();
-    const markers = chargerList.map((item) => {
-      const pos = new window.Tmapv2.LatLng(item.parkingLat, item.parkingLon);
+    const markers = chargerParkings.map((parking) => {
+      const pos = new window.Tmapv2.LatLng(parking.parkingLat, parking.parkingLon);
       const marker = new window.Tmapv2.Marker({
         position: pos,
         map,
-        title: item.parkingName,
+        label: parking.parkingName,
       });
       bounds.extend(pos);
+
+      // 클릭 시 InfoWindow로 상세정보(무료/유료 등) 표시
+      marker.addListener("click", function () {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.setMap(null);
+        }
+        const content = `
+          <div style="padding:8px;min-width:170px;">
+            <b>${parking.parkingName}</b><br/>
+            주소: ${parking.parkingAddress ?? ""} <br/>
+            <span style="color:${parking.parkingFee === "무료" ? "green" : "red"}">
+              ${parking.parkingFee ?? ""}
+            </span>
+          </div>
+        `;
+        const infoWindow = new window.Tmapv2.InfoWindow({
+          position: pos,
+          content: content,
+          type: 2,
+          map: map,
+        });
+        infoWindowRef.current = infoWindow;
+      });
+
       return marker;
     });
 
-    // 4) 클러스터러 적용
-    if (window.Tmapv2.extension && window.Tmapv2.extension.MarkerCluster) {
-      clusterRef.current = new window.Tmapv2.extension.MarkerCluster({
-        markers,
-        map,
-      });
-    }
+    clusterRef.current = new window.Tmapv2.extension.MarkerCluster({
+      markers,
+      map,
+    });
 
-    // 5) 모든 마커 포함되게 지도 맞춤
-    if (!bounds.isEmpty()) map.fitBounds(bounds);
+    map.fitBounds(bounds);
 
-    // cleanup
     return () => {
       clusterRef.current?.destroy?.();
       mapRef.current = null;
+      if (infoWindowRef.current) {
+        infoWindowRef.current.setMap(null);
+        infoWindowRef.current = null;
+      }
     };
-  }, [chargerList]);
+  }, [chargerParkings]);
 
   return (
     <div
@@ -80,4 +159,4 @@ function Map() {
   );
 }
 
-export default Map;
+export default OnlyChargerParkingMap;
