@@ -1,0 +1,14 @@
+.introPanel{
+  position: absolute;
+    left: 8%; /* Sidebar 오른쪽으로 살짝 띄우기 */
+    top: 0px;
+    width: 93%;
+    background: white;
+    padding-top: 15px;
+    padding-bottom: 15px;
+
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    z-index: 10;
+    height:100%;
+
+}

@@ -13,7 +13,7 @@
 .my-location-button {
   position: absolute;
   bottom: 20px;
-  right: 30px;
+  right: 20px;
   background-color: white;
   border: 0px solid #aaa;
   width:50px;
@@ -34,6 +34,7 @@
   height:100%;
   background-color: white;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  padding-top:15px;
 
   z-index: 10;
 }
@@ -52,6 +53,11 @@
 }
 .sidebar a:hover {
   color: #80D6FB;
+}
+
+.sidebar a.active{
+    background-color:#80D6FB;
+    color:white;
 }
 
 a i {
