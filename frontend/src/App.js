@@ -67,13 +67,29 @@
 //
 //export default App;
 
+//import React from "react";
+//import CheonanEvMapTmapOnly from "./component/CheonanEvMapTmapOnly";
+
+//function App() {
+//  return (
+//    <div style={{ maxWidth: 900, margin: "0 auto", padding: "30px 0" }}>
+//      <CheonanEvMapTmapOnly />
+//    </div>
+//  );
+//}
+//
+//export default App;
+
 import React from "react";
-import CheonanEvMapTmapOnly from "./component/CheonanEvMapTmapOnly";
+import CheonanEvMapWithCategories from "./component/CheonanEvMapWithCategories";
 
 function App() {
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "30px 0" }}>
-      <CheonanEvMapTmapOnly />
+    <div>
+      <h2 style={{ margin: "20px 0 18px 0", textAlign: "center", fontWeight: 700, color: "#1a4668" }}>
+        EV 충전소/음식점/카페/편의점 위치 비교 서비스 (현위치 기준)
+      </h2>
+      <CheonanEvMapWithCategories />
     </div>
   );
 }
