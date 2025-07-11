@@ -27,7 +27,15 @@ const Sidebar = () => {
       <NavLink to="/info" className={({ isActive }) => isActive ? 'tab active' : 'tab'}>
         <i className="fa-solid fa-car-side"></i><br />전기차 소개
       </NavLink>
+
+
+      <Link to="/login" className="loginbtn">
+               로그인
+      </Link>
+
     </div>
+
+
   );
 };
 

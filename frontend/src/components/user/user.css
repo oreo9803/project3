@@ -1,0 +1,106 @@
+
+
+.h2{
+    text-align:center;
+    margin-bottom:40px;
+}
+
+.login-container {
+      position: absolute;
+      left: 8%; /* Sidebar 오른쪽으로 살짝 띄우기 */
+      top: 0px;
+      width: 93%;
+      background: white;
+      padding-top: 15px;
+
+
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 10;
+      height:100%;
+}
+
+.login-form-box{
+
+
+    width:55%;
+
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    margin: 70px auto;
+    border-radius:15px;
+
+}
+
+.login-form{
+    flex-direction: column;
+    display: flex;
+    padding-top:40px;
+
+
+
+}
+
+.login-form input{
+    width:70%;
+    margin: 13px auto;
+    font-size:17px;
+    height:60px;
+    border-radius:10px;
+
+    border:2px #e5e5e5 solid;
+
+}
+
+.login-tab{
+     display:flex;
+     justify-content: center;
+
+}
+
+.login-tab a{
+   text-decoration:none;
+   color:black;
+   padding:3px 80px;
+   font-weight:550;
+
+}
+
+.login-tab a:hover{
+   color: #80D6FB;
+}
+
+.login-tab .active {
+    border-bottom: #80D6FB solid 1px;
+    color: #80D6FB;
+
+}
+
+.login-form input:focus{
+    border:2px #80D6FB solid;
+    outline: none;
+
+}
+
+.login-btn{
+     width:70%;
+     margin: 30px auto 40px auto;
+     height:60px;
+     font-size:20px;
+     color:white;
+     background-color:#80D6FB;
+     border:none;
+     border-radius:10px;
+
+}
+
+.login-btn:hover{
+
+    background-color:#FFD600;
+
+}
+
+.join-form{
+    flex-direction: column;
+        display: flex;
+        padding-top:40px;
+
+}
