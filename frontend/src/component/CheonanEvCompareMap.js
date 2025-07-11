@@ -1,15 +1,12 @@
     import React, { useEffect, useRef, useState } from "react";
 
-    // 네가 실제 사용하는 키값 그대로!
     const TMAP_APPKEY = "YgInMIl2n421NwwwG3XOrf0oQSE1paEFRCFbejc0";
-
     const PUBLIC_API_KEY = "YgV1BhJxbWJKaUUVPFk5Ix4ReH2UAlK0kBcxyX%2BqVLJUG0%2FXUnMoxWYg3zAMt6N4rJGdJAHMxjoxd10%2BWwhuow%3D%3D";
 
-    // 천안역 좌표 기준
     const CHEONAN_STATION_LAT = 36.81023;
     const CHEONAN_STATION_LON = 127.14644;
 
-    // 오차 20m 이내면 동일 장소로 간주
+    // 20m 이내는 동일 장소로 간주
     function isSameLocation(a, b) {
     return (
         Math.abs(a.lat - b.lat) < 0.0002 &&
@@ -22,71 +19,76 @@
     const mapRef = useRef(null);
     const markersRef = useRef([]);
     const infoWindowRef = useRef(null);
+
     const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+    const [publicList, setPublicList] = useState([]);
+    const [tmapList, setTmapList] = useState([]);
 
-    // 전체 데이터 보관
-    const [publicList, setPublicList] = useState([]); // 환경부 충전소
-    const [tmapList, setTmapList] = useState([]);     // Tmap POI
-
-    // 1. 두 API 데이터 모두 받아오기
     useEffect(() => {
         async function fetchData() {
         setLoading(true);
+        setErrorMsg("");
+        setPublicList([]);
+        setTmapList([]);
 
-        // (1) 공공데이터포털(환경부) EV 충전소 - 천안역 인근(5km)
-        // 공공 API는 XML 반환, JS에서 파싱 필요
-        const pubUrl = `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=${PUBLIC_API_KEY}&pageNo=1&numOfRows=1000&zcode=34110`;
-        const res1 = await fetch(pubUrl);
-        const text1 = await res1.text();
-        const xml = new window.DOMParser().parseFromString(text1, "application/xml");
-        const items = Array.from(xml.getElementsByTagName("item"));
-        // 파싱 후 좌표 5km 이내만 필터링
-        const pubArr = items.map(item => {
+        // (1) 환경부 EV 충전소
+        try {
+            const pubUrl = `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=${PUBLIC_API_KEY}&pageNo=1&numOfRows=1000&zcode=34110`;
+            const res1 = await fetch(pubUrl);
+            if (!res1.ok) throw new Error("환경부 EV API 오류: " + res1.status);
+            const text1 = await res1.text();
+            const xml = new window.DOMParser().parseFromString(text1, "application/xml");
+            const items = Array.from(xml.getElementsByTagName("item"));
+            const pubArr = items.map(item => {
             const lat = parseFloat(item.getElementsByTagName("lat")[0]?.textContent);
             const lon = parseFloat(item.getElementsByTagName("lng")[0]?.textContent);
             const dist = getDistanceKm(CHEONAN_STATION_LAT, CHEONAN_STATION_LON, lat, lon);
             return {
-            name: item.getElementsByTagName("statNm")[0]?.textContent ?? "",
-            address: item.getElementsByTagName("addr")[0]?.textContent ?? "",
-            lat, lon,
-            dist
+                name: item.getElementsByTagName("statNm")[0]?.textContent ?? "",
+                address: item.getElementsByTagName("addr")[0]?.textContent ?? "",
+                lat, lon, dist
             };
-        }).filter(x => x.lat && x.lon && x.dist < 5); // 천안역 반경 5km
-
-        setPublicList(pubArr);
-
-        // (2) Tmap POI 검색 "전기차 충전소" - 천안역 인근
-        const tmapUrl = `https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(
-            "전기차 충전소"
-        )}&centerLat=${CHEONAN_STATION_LAT}&centerLon=${CHEONAN_STATION_LON}&radius=5000&count=30&resCoordType=WGS84GEO&reqCoordType=WGS84GEO`;
-
-        const res2 = await fetch(tmapUrl, {
-        headers: {
-            "appKey": "YgInMIl2n421NwwwG3XOrf0oQSE1paEFRCFbejc0"
-
-
+            }).filter(x => x.lat && x.lon && x.dist < 5);
+            setPublicList(pubArr);
+        } catch (e) {
+            setErrorMsg("환경부 API 오류: " + e.message);
+            setLoading(false);
+            return;
         }
-        });
-        const data2 = await res2.json();
-        const poiList = data2?.searchPoiInfo?.pois?.poi ?? [];
-        const tmapArr = poiList.map(poi => ({
+
+        // (2) Tmap POI API (공식 명세 그대로!)
+        try {
+            const tmapUrl = `https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent("전기차 충전소")}&centerLat=${CHEONAN_STATION_LAT}&centerLon=${CHEONAN_STATION_LON}&radius=5&count=30&resCoordType=WGS84GEO&reqCoordType=WGS84GEO&appKey=${TMAP_APPKEY}`;
+            const res2 = await fetch(tmapUrl);
+            if (!res2.ok) {
+            const errText = await res2.text();
+            setErrorMsg(`Tmap API 오류: ${res2.status} - ${errText}`);
+            setLoading(false);
+            return;
+            }
+            const data2 = await res2.json();
+            const poiList = data2?.searchPoiInfo?.pois?.poi ?? [];
+            const tmapArr = poiList.map(poi => ({
             name: poi.name,
             address:
-            poi.newAddressList?.newAddress?.[0]?.fullAddress ||
-            `${poi.upperAddrName} ${poi.middleAddrName} ${poi.lowerAddrName}`,
+                poi.newAddressList?.newAddress?.[0]?.fullAddress ||
+                `${poi.upperAddrName} ${poi.middleAddrName} ${poi.lowerAddrName}`,
             lat: parseFloat(poi.frontLat),
             lon: parseFloat(poi.frontLon)
-        })).filter(x => x.lat && x.lon);
-
-        setTmapList(tmapArr);
+            })).filter(x => x.lat && x.lon);
+            setTmapList(tmapArr);
+        } catch (e) {
+            setErrorMsg("Tmap API 오류: " + e.message);
+            setLoading(false);
+            return;
+        }
         setLoading(false);
-
         }
 
         fetchData();
     }, []);
 
-    // 2. 지도 초기화 + 마커
     useEffect(() => {
         if (!window.Tmapv2 || loading) return;
         if (mapDivRef.current) mapDivRef.current.innerHTML = "";
@@ -94,7 +96,6 @@
         markersRef.current = [];
         if (infoWindowRef.current) infoWindowRef.current.setMap(null);
 
-        // 지도 생성
         const map = new window.Tmapv2.Map(mapDivRef.current, {
         center: new window.Tmapv2.LatLng(CHEONAN_STATION_LAT, CHEONAN_STATION_LON),
         width: "100%",
@@ -103,27 +104,21 @@
         });
         mapRef.current = map;
 
-        // (1) 매칭/분류
+        // 매칭/분류
         const matched = [];
         const onlyPublic = [];
         const onlyTmap = [];
 
         publicList.forEach(pub => {
         const twin = tmapList.find(tm => isSameLocation(pub, tm));
-        if (twin) {
-            matched.push({ ...pub, ...twin });
-        } else {
-            onlyPublic.push(pub);
-        }
+        if (twin) matched.push({ ...pub, ...twin });
+        else onlyPublic.push(pub);
         });
         tmapList.forEach(tm => {
-        if (!publicList.find(pub => isSameLocation(pub, tm))) {
-            onlyTmap.push(tm);
-        }
+        if (!publicList.find(pub => isSameLocation(pub, tm))) onlyTmap.push(tm);
         });
 
-        // (2) 지도 마커 생성 (색상/아이콘 구분)
-        matched.forEach((item, idx) => {
+        matched.forEach(item => {
         makeMarker(item, "green", "공공+Tmap", map, markersRef, infoWindowRef);
         });
         onlyPublic.forEach(item => {
@@ -133,23 +128,18 @@
         makeMarker(item, "orange", "Tmap 전용", map, markersRef, infoWindowRef);
         });
 
-        // 모든 마커 포함하게 지도 bounds
         let bounds = new window.Tmapv2.LatLngBounds();
         [...matched, ...onlyPublic, ...onlyTmap].forEach(item => {
-        if (item.lat && item.lon) {
-            bounds.extend(new window.Tmapv2.LatLng(item.lat, item.lon));
-        }
+        if (item.lat && item.lon) bounds.extend(new window.Tmapv2.LatLng(item.lat, item.lon));
         });
         if (!bounds.isEmpty()) map.fitBounds(bounds);
 
-        // cleanup
         return () => {
         if (mapDivRef.current) mapDivRef.current.innerHTML = "";
         markersRef.current.forEach(marker => marker.setMap(null));
         markersRef.current = [];
         if (infoWindowRef.current) infoWindowRef.current.setMap(null);
         };
-        // eslint-disable-next-line
     }, [publicList, tmapList, loading]);
 
     return (
@@ -164,15 +154,18 @@
             boxShadow: "0 2px 8px rgba(0,0,0,0.13)"
             }}
         />
-        {loading && <div style={{marginTop:12}}>데이터 불러오는 중...</div>}
+        {loading && <div style={{ marginTop: 12 }}>데이터 불러오는 중...</div>}
+        {errorMsg && (
+            <div style={{ color: "red", marginTop: 16 }}>
+            <b>API 오류:</b> {errorMsg}
+            </div>
+        )}
         <Legend />
         </div>
     );
     }
 
-    // 마커 만들기(색상, InfoWindow 구분)
     function makeMarker(item, color, label, map, markersRef, infoWindowRef) {
-    // 마커 아이콘 색상 바꾸기
     let icon = "";
     if (color === "green") {
         icon = "http://maps.google.com/mapfiles/ms/icons/green-dot.png";
@@ -221,17 +214,17 @@
     return R * c;
     }
 
-    // 범례(마커 색상 안내)
+    // 범례
     function Legend() {
     return (
         <div style={{ marginTop: 18, marginBottom: 14, fontSize: 15 }}>
-        <span style={{display:'inline-block',marginRight:24}}>
+        <span style={{ display: 'inline-block', marginRight: 24 }}>
             <img src="http://maps.google.com/mapfiles/ms/icons/green-dot.png" alt="" /> <b>공공+Tmap 모두</b>
         </span>
-        <span style={{display:'inline-block',marginRight:24}}>
+        <span style={{ display: 'inline-block', marginRight: 24 }}>
             <img src="http://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="" /> <b>공공데이터 전용</b>
         </span>
-        <span style={{display:'inline-block',marginRight:24}}>
+        <span style={{ display: 'inline-block', marginRight: 24 }}>
             <img src="http://maps.google.com/mapfiles/ms/icons/orange-dot.png" alt="" /> <b>Tmap 전용</b>
         </span>
         </div>
