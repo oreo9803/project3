@@ -56,11 +56,24 @@
 
 // export default App;
 
-import CheonanEvCompareMap from "./components/CheonanEvCompareMap";
+//import CheonanEvCompareMap from "./component/CheonanEvCompareMap";
+//function App() {
+//  return (
+//    <div style={{maxWidth:900,margin:'0 auto',padding:24}}>
+//      <CheonanEvCompareMap />
+//    </div>
+//  );
+//}
+//
+//export default App;
+
+import React from "react";
+import CheonanEvMapTmapOnly from "./component/CheonanEvMapTmapOnly";
+
 function App() {
   return (
-    <div style={{maxWidth:900,margin:'0 auto',padding:24}}>
-      <CheonanEvCompareMap />
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "30px 0" }}>
+      <CheonanEvMapTmapOnly />
     </div>
   );
 }

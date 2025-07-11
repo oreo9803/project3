@@ -6,14 +6,14 @@
     const CHEONAN_STATION_LAT = 36.81023;
     const CHEONAN_STATION_LON = 127.14644;
 
-    // 20m 이내는 동일 장소로 간주
-    function isSameLocation(a, b) {
-    return (
-        Math.abs(a.lat - b.lat) < 0.0002 &&
-        Math.abs(a.lon - b.lon) < 0.0002
-    );
-    }
-
+// 50m 이내는 동일 장소로 간주
+function isSameLocation(a, b) {
+  // 위도 0.00045 ≒ 50m (위도·경도 약 1도=111km로 계산)
+  return (
+    Math.abs(a.lat - b.lat) < 0.00045 &&
+    Math.abs(a.lon - b.lon) < 0.00045
+  );
+}
     function CheonanEvCompareMap() {
     const mapDivRef = useRef(null);
     const mapRef = useRef(null);
@@ -34,7 +34,7 @@
 
         // (1) 환경부 EV 충전소
         try {
-            const pubUrl = `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=${PUBLIC_API_KEY}&pageNo=1&numOfRows=1000&zcode=34110`;
+            const pubUrl = `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=${PUBLIC_API_KEY}&pageNo=1&numOfRows=1000&zcode=44`;
             const res1 = await fetch(pubUrl);
             if (!res1.ok) throw new Error("환경부 EV API 오류: " + res1.status);
             const text1 = await res1.text();
